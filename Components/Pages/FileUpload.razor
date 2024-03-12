@@ -1,0 +1,76 @@
+﻿@page "/file-upload"
+@rendermode InteractiveServer
+@using System
+@using System.IO
+@using Microsoft.AspNetCore.Hosting
+@using System.Diagnostics
+@inject IWebHostEnvironment Environment
+
+<PageTitle>File Upload</PageTitle>
+
+<h1>File Upload</h1>
+
+<p>
+    <label>
+        Max file size:
+        <input type="number" @bind="maxFileSize" />
+    </label>
+</p>
+
+<p>
+    <label>
+        Select file to upload:
+        <InputFile OnChange="LoadFile" />
+    </label>
+</p>
+
+@if (isLoading)
+{
+    <p>Uploading...</p>
+}
+else
+{
+    @if (loadedFile != null)
+    {
+        <ul>
+            <li>Name: @loadedFile.Name</li>
+            <li>Last modified: @loadedFile.LastModified.ToString()</li>
+            <li>Size (bytes): @loadedFile.Size</li>
+            <li>Content type: @loadedFile.ContentType</li>
+            <li>Upload time: @stopwatch.Elapsed</li>
+        </ul>
+    }
+}
+
+@code {
+    private IBrowserFile? loadedFile;
+    private long maxFileSize = 1024 * 1024 * 1024;
+    private bool isLoading;
+    private Stopwatch stopwatch = new();
+
+    private async Task LoadFile(InputFileChangeEventArgs e)
+    {
+        isLoading = true;
+        loadedFile = null;
+
+        var trustedFileName = Path.GetRandomFileName();
+        var path = Path.Combine(
+            Environment.ContentRootPath,
+            trustedFileName);
+
+        stopwatch.Restart();
+        try
+        {
+            await using FileStream fs = new(path, FileMode.Create);
+            await e.File.OpenReadStream(maxFileSize).CopyToAsync(fs);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        stopwatch.Stop();
+
+        loadedFile = e.File;
+        isLoading = false;
+    }
+}
